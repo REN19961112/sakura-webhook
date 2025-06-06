@@ -1,32 +1,34 @@
 const express = require('express');
+const crypto = require('crypto');
 const app = express();
-const fetch = require('node-fetch'); // 追加が必要
 const PORT = process.env.PORT || 8080;
 
-app.use(express.json());
+const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 
-app.post('/webhook', async (req, res) => {
-  res.sendStatus(200); // LINE用即レス
-
-  console.log('✅ メッセージ受信:', req.body);
-
-  // 👇 エアテーブル検索モジュールに渡す
-  try {
-    const response = await fetch('https://sakura-airtable-user-search-modules-production.up.railway.app/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: req.body.events?.[0]?.source?.userId || 'unknown',
-        message: req.body.events?.[0]?.message?.text || ''
-      })
-    });
-
-    const result = await response.json();
-    console.log('🔁 次モジュールからの返答:', result);
-
-  } catch (error) {
-    console.error('❌ 次モジュールへの転送失敗:', error);
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf; // 署名検証用に保存
   }
+}));
+
+app.post('/webhook', (req, res) => {
+  // ① 署名チェック
+  const signature = req.headers['x-line-signature'];
+  const hash = crypto
+    .createHmac('SHA256', LINE_CHANNEL_SECRET)
+    .update(req.rawBody)
+    .digest('base64');
+
+  if (signature !== hash) {
+    console.log('❌ 署名が一致しません');
+    return res.sendStatus(403);
+  }
+
+  // ② ログ出力
+  console.log('✅ メッセージ受信:', JSON.stringify(req.body));
+
+  // ③ 応答はすぐ返す
+  res.sendStatus(200);
 });
 
 app.get('/', (req, res) => {
