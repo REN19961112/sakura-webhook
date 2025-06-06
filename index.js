@@ -12,7 +12,7 @@ app.use(express.json({
 }));
 
 app.post('/webhook', (req, res) => {
-  // ① 署名チェック
+  // 署名チェック
   const signature = req.headers['x-line-signature'];
   const hash = crypto
     .createHmac('SHA256', LINE_CHANNEL_SECRET)
@@ -24,10 +24,10 @@ app.post('/webhook', (req, res) => {
     return res.sendStatus(403);
   }
 
-  // ② ログ出力
+  // ログ出力
   console.log('✅ メッセージ受信:', JSON.stringify(req.body));
 
-  // ③ 応答はすぐ返す
+  // LINEへ200応答
   res.sendStatus(200);
 });
 
@@ -35,6 +35,6 @@ app.get('/', (req, res) => {
   res.send('🌸 Sakura Webhook Running!');
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🌐 サーバー起動: http://localhost:${PORT}`);
 });
